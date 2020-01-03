@@ -1,0 +1,88 @@
+---
+title: "Traffic fatalities"
+output:
+  html_document:
+    df_print: paged
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_dir = "docs") })
+---
+
+
+```{r setup, echo=T, results='hide', message=F, warning=F}
+library(tidyverse)
+library(janitor)
+library(readxl)
+library(lubridate)
+```
+
+## Import FARS 2018 data
+
+```{r}
+accidents_2018 <- read_csv("data-raw/FARS2018NationalCSV/ACCIDENT.csv") %>% clean_names()
+glc_state_county <- read_rds("data-out/01-glc_state_county.rds")
+```
+
+### Change some columns that came in as numbers into text.
+
+```{r}
+accidents_2018 <- accidents_2018 %>% 
+  mutate(
+    county = county %>% as.character(),
+    state = state %>% as.character(),
+    city = city %>% as.character(),
+    st_case = st_case %>% as.character()
+    )
+```
+
+### Create a date column
+
+```{r}
+accidents_2018 <- accidents_2018 %>% 
+  mutate(
+    acc_date = ymd(paste(year, month, day, sep = '-'))
+    )
+```
+
+
+### Join to get geography names
+
+The accidents uses codes for state and county. We use the GLC data to get those.
+
+```{r}
+accidents_2018 <- accidents_2018 %>% 
+  left_join(glc_state_county, by=c("state" = "state_code", "county" = "county_code"))
+```
+
+#### Testing for misspelled county names
+
+When joining these files, I found I got more observations that the original file. This was because there were multiple spellings for certain counties.
+
+Create a dataframe that is the count of multiple cases. This would happen if there were multiple county_names, which there were, but they hopefully have been fixed above in `glc_state_county`.
+
+```{r}
+cnty_spell <- accidents_2018 %>% 
+  count(st_case) %>% 
+  arrange(n %>% desc()) %>% 
+  filter(n > 1) %>% 
+  pull(st_case) %>% 
+  tibble::enframe(name = NULL)
+
+cnty_spell <- cnty_spell %>% 
+  rename(st_case = value)
+```
+
+Join the accidents to the cnty_spell to find the multiple names. This should show zero rows.
+
+```{r}
+accidents_2018 %>% 
+  inner_join(cnty_spell) %>% 
+  select(state_name, county_name) %>% 
+  distinct()
+```
+
+## Export data
+
+```{r}
+accidents_2018 %>% 
+  write_rds("data-out/02_accidents_2018.rds")
+```
+

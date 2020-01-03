@@ -1,0 +1,76 @@
+---
+title: "GLC import and clean"
+output:
+  html_document:
+    df_print: paged
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_dir = "docs") })
+---
+
+This notebook uses the geography names from [U.S. General Services Administration](https://www.gsa.gov/reference/geographic-locator-codes/glcs-for-the-us-and-us-territories) to create state and county names for the fatalities data.
+
+It cleans up the data in a couple of ways. I found that some county names were misspelled and corrected them (though this should be improved to do this by state.) These were found from joining to the accident data and noticing there were more observations because some counties were listed under multiple spellings.
+
+There could be more duplicate counties in the GLC data that were not found because there weren't any fatalities in that county in 2018. I'm not sure how to test for them using this data alone since there are 3k of them.
+
+```{r setup, echo=T, results='hide', message=F, warning=F}
+library(tidyverse)
+library(janitor)
+library(readxl)
+library(lubridate)
+```
+
+## Import
+
+```{r}
+glc_us <- read_excel("data-raw/FRPP_GLC_-_United_States12419.xlsx") %>% clean_names()
+```
+
+### Make table for state, county names
+
+```{r}
+glc_state_county <- glc_us %>% 
+  select(state_code, state_name, county_code, county_name) %>% 
+  distinct()
+```
+
+
+### Cleaning geographies
+
+There is a one record for Alabama that has the wrong `state_code` value of "01" instead of "1". The following shows the problem.
+
+```{r}
+glc_state_county %>%
+  count(state_code, state_name) %>% 
+  count(state_name) %>% 
+  arrange(n %>% desc()) %>% 
+  head(3)
+```
+
+There are a number cases where county names are spelled more than one way. These were found after the join was made with accidents and the join counts didn't match. There are tests after the join.
+
+This needs to be improved in two ways:
+
+- Make the change based on a condition for that state. It could be there are similar names in different states that don't need to change.
+- Figure out a way to do this check in this dataset alone, without involving the accidents file. There could be errors that are not caught because there were no accidents in that county.
+
+```{r}
+glc_state_county <- glc_state_county %>% 
+  mutate(
+    state_code=replace(state_code, state_code == "01", "1"),
+    county_name = replace(county_name, county_name == "SAINT GENEVIEVE", "STE GENEVIEVE"),
+    county_name = replace(county_name, county_name == "SAINTE GENEVIEVE", "STE GENEVIEVE"),
+    county_name = replace(county_name, county_name == "SAINT BERNARD", "ST. BERNARD"),
+    county_name = replace(county_name, county_name == "SAINT  MARY'S", "ST. MARY'S"),
+    county_name = replace(county_name, county_name == "CATERET", "CARTERET"),
+    county_name = replace(county_name, county_name == "SAINT CHARLES", "ST. CHARLES")
+    ) %>% 
+  distinct()
+```
+
+## Export the file
+
+```{r}
+glc_state_county %>% 
+  write_rds("data-out/01-glc_state_county.rds")
+```
+
