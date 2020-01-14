@@ -46,7 +46,23 @@ glc_state_county %>%
   head(3)
 ```
 
-There are a number cases where county names are spelled more than one way. These were found after the join was made with accidents and the join counts didn't match. There are tests after the join.
+This fixes that alabama problem.
+
+```{r}
+glc_state_county <- glc_state_county %>% 
+  mutate(
+    state_code=replace(state_code, state_code == "01", "1"),
+  )
+
+glc_state_county %>%
+  count(state_code, state_name) %>% 
+  count(state_name) %>% 
+  arrange(n %>% desc()) %>% 
+  head(3)
+```
+
+
+There are a number cases where county names are spelled more than one way. These were found after the join was made with accidents and the join counts didn't match. There are tests after the join in that notebook.
 
 This needs to be improved in two ways:
 
@@ -56,7 +72,6 @@ This needs to be improved in two ways:
 ```{r}
 glc_state_county <- glc_state_county %>% 
   mutate(
-    state_code=replace(state_code, state_code == "01", "1"),
     county_name = replace(county_name, county_name == "SAINT GENEVIEVE", "STE GENEVIEVE"),
     county_name = replace(county_name, county_name == "SAINTE GENEVIEVE", "STE GENEVIEVE"),
     county_name = replace(county_name, county_name == "SAINT BERNARD", "ST. BERNARD"),

@@ -14,14 +14,19 @@ library(readxl)
 library(lubridate)
 ```
 
-## Import FARS 2018 data
+## Import 
+
+- FARS 2018 data from [USDOT FARS database](https://www.nhtsa.gov/research-data/fatality-analysis-reporting-system-fars). Bulk download is [via ftp](ftp://ftp.nhtsa.dot.gov/fars/).
+- Cleaned state/county values is from previous notebook "01-glc-import-clean.Rmd".
 
 ```{r}
 accidents_2018 <- read_csv("data-raw/FARS2018NationalCSV/ACCIDENT.csv") %>% clean_names()
 glc_state_county <- read_rds("data-out/01-glc_state_county.rds")
 ```
 
-### Change some columns that came in as numbers into text.
+### Change to text
+
+Some columns came in as numbers that should be text. These are mostly codes that need joining.
 
 ```{r}
 accidents_2018 <- accidents_2018 %>% 
@@ -54,9 +59,9 @@ accidents_2018 <- accidents_2018 %>%
 
 #### Testing for misspelled county names
 
-When joining these files, I found I got more observations that the original file. This was because there were multiple spellings for certain counties.
+When joining these files, I found I got more observations than the original file. This was because there were multiple spellings for certain counties.
 
-Create a dataframe that is the count of multiple cases. This would happen if there were multiple county_names, which there were, but they hopefully have been fixed above in `glc_state_county`.
+Create a dataframe that is the count of multiple cases. This would happen if there were multiple county_names, which there were, but they hopefully have been fixed in the glc-import-clean notebook.
 
 ```{r}
 cnty_spell <- accidents_2018 %>% 
